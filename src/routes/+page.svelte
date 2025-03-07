@@ -1,22 +1,21 @@
-<script lang="ts">
-  // funcion para redirigir al login en caso de no tener token
-  function redirect() {
-    const token = localStorage.getItem("token");
+<script>
+  import { onMount } from 'svelte';
+
+  // Verificar el token al cargar la página
+  onMount(() => {
+    const token = localStorage.getItem('token'); // Obtener el token de localStorage
     if (!token) {
-      window.location.href = "/login";
+      window.location.href = '/login'; // Redirigir al login si no hay token
+    } else {
+      window.location.href = '/dashboard'; // Redirigir al dashboard si hay token
     }
-  }
-  redirect();
-  // funcion para cerrar sesion
-  function logout() {
-	localStorage.removeItem("token");
-	window.location.href = "/login";
-  }
-
-  logout();
-
+  });
 </script>
 
 <svelte:head>
-  <title>Bienvenido</title>
+  <title>Redirecting...</title>
 </svelte:head>
+
+<div>
+  <p>Redirecting...</p>
+</div>
