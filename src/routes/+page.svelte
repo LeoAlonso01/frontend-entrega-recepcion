@@ -3,13 +3,16 @@
 
   // Verificar el token al cargar la página
   onMount(() => {
-    const token = localStorage.getItem('token'); // Obtener el token de localStorage
-    if (!token) {
-      window.location.href = '/login'; // Redirigir al login si no hay token
-    } else {
-      window.location.href = '/dashboard'; // Redirigir al dashboard si hay token
-    }
-  });
+  const token = localStorage.getItem('token');
+  if (!token || isTokenExpired(token)) {
+    // Limpiar el token si está expirado
+    localStorage.removeItem('token');
+    window.location.href = '/login'; // Redirigir al login
+  } else {
+    window.location.href = '/dashboard'; // Redirigir al dashboard si hay token válido
+  }
+});
+  
 </script>
 
 <svelte:head>
