@@ -97,18 +97,12 @@
     <ul>
       <li>
         <a href="/settings" class="logo-item">
-          <i class="fas fa-cog"></i>
+          <i class="fa-solid fa-pen"></i>
           <!-- Ícono de configuración -->
-          <span>Administración</span>
+          <span>Anexos</span>
         </a>
       </li>
-      <li>
-        <a href="/profile" class="logo-item">
-          <i class="fas fa-users"></i>
-          <!-- Ícono de usuarios -->
-          <span>Usuarios</span>
-        </a>
-      </li>
+
       <li>
         <a
           href="/"
@@ -172,7 +166,7 @@
 
   /* Estilos para el sidebar colapsado */
   .sidebar.collapsed {
-    width: 70px; /* Ancho reducido */
+    width: 60px; /* Ancho reducido */
   }
 
   .sidebar.collapsed ul li span {
@@ -186,7 +180,6 @@
   .sidebar.collapsed .logo-item {
     justify-content: center; /* Centrar iconos */
   }
-
   .collapse-toggle {
     font-size: 24px; /* Ajusta el tamaño del ícono */
     cursor: pointer;

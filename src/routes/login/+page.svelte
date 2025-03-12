@@ -1,13 +1,11 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  let username = "DaniAlonso"; // Username
-  let password = "0526"; // Password
+  let username = ""; // Username
+  let password = ""; // Password
   let error = ""; // Mensaje de error general
   let fieldErrors: { [key: string]: string } = {}; // Errores por campo
-
+  let isLoading = false; // Estado de carga
 
   async function handleLogin() {
-
     // Reiniciar errores
     error = "";
     fieldErrors = {};
@@ -46,10 +44,8 @@
       // Si la respuesta es exitosa, guardar el token y redirigir
       localStorage.setItem("token", data.access_token); // Guardar el token
       localStorage.setItem("user", JSON.stringify(data)); // Guardar la información del usuario
-      console.log(data.access_token);
-      console.log(data);
-      alert("¡Bienvenido! Has iniciado sesión correctamente.");
-      window.location.href = "/dashboard"; // Redirigir al dashboard
+      console.log("Usuario identificado");
+      window.location.href = "/loading"; // Redirigir a la página de carga intermedia
     } catch (err) {
       error = "Error de conexión. Inténtalo de nuevo.";
     }
@@ -64,15 +60,23 @@
   <!-- Columna izquierda: Formulario de login -->
   <div class="flex-1 flex justify-center items-center bg-gray-50 p-4 lg:p-12">
     <div class="w-full max-w-md bg-white rounded-lg shadow-md p-6 lg:p-8">
-      <img src="../oic.jpg" alt="Logo" class="mx-auto mb-4 w-20 h-20 sm:w-24 sm:h-24" />
-      <h1 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-gray-900">
+      <img
+        src="../oic.jpg"
+        alt="Logo"
+        class="mx-auto mb-4 w-20 h-20 sm:w-24 sm:h-24"
+      />
+      <h1
+        class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-gray-900"
+      >
         Ingrese su Correo Institucional y contraseña
       </h1>
       <form on:submit|preventDefault={handleLogin}>
         <!-- Campo de correo -->
         <div class="mb-3 sm:mb-4">
-          <label for="email" class="block text-sm sm:text-base font-medium text-gray-700"
-            >Correo</label
+          <label
+            for="email"
+            class="block text-sm sm:text-base font-medium text-gray-700"
+            >Nombre de Usuario</label
           >
           <input
             type="text"
@@ -82,13 +86,17 @@
             required
           />
           {#if fieldErrors.username}
-            <p class="text-red-500 text-xs sm:text-sm mt-1">{fieldErrors.username}</p>
+            <p class="text-red-500 text-xs sm:text-sm mt-1">
+              {fieldErrors.username}
+            </p>
           {/if}
         </div>
 
         <!-- Campo de contraseña -->
         <div class="mb-4 sm:mb-6">
-          <label for="password" class="block text-sm sm:text-base font-medium text-gray-700"
+          <label
+            for="password"
+            class="block text-sm sm:text-base font-medium text-gray-700"
             >Contraseña</label
           >
           <input
@@ -99,7 +107,9 @@
             required
           />
           {#if fieldErrors.password}
-            <p class="text-red-500 text-xs sm:text-sm mt-1">{fieldErrors.password}</p>
+            <p class="text-red-500 text-xs sm:text-sm mt-1">
+              {fieldErrors.password}
+            </p>
           {/if}
         </div>
 
@@ -137,23 +147,37 @@
       </p>
       <ul class="list-disc list-inside mb-4 sm:mb-6 text-sm sm:text-base">
         <li class="mb-1 sm:mb-2">
-          <a target="_blank" href="https://contraloria.umich.mx/archivos/normatividad/lineamientos_entrega_recepcion_umsnh.pdf" class="hover:underline"
+          <a
+            target="_blank"
+            href="https://contraloria.umich.mx/archivos/normatividad/lineamientos_entrega_recepcion_umsnh.pdf"
+            class="hover:underline"
             >Lineamientos del proceso de Entrega - Recepción</a
           >
         </li>
         <li class="mb-1 sm:mb-2">
-          <a target="_blank" href="https://contraloria.umich.mx/entregarecepcion/archivos/archivos_contraloria/guia_usuario_serumich.pdf" class="hover:underline">Guía de usuario SERUMICH 2.0</a>
-        </li>
-        <li class="mb-1 sm:mb-2">
-          <a target="_blank" href="https://contraloria.umich.mx/entregarecepcion/archivos/archivos_contraloria/instructivo_llenado_serumich.pdf" class="hover:underline"
-            >Instructivo de llenado de anexos</a
+          <a
+            target="_blank"
+            href="https://contraloria.umich.mx/entregarecepcion/archivos/archivos_contraloria/guia_usuario_serumich.pdf"
+            class="hover:underline">Guía de usuario SERUMICH 2.0</a
           >
         </li>
         <li class="mb-1 sm:mb-2">
-          <a target="_blank" href="/" class="hover:underline">Plantillas de anexos</a>
+          <a
+            target="_blank"
+            href="https://contraloria.umich.mx/entregarecepcion/archivos/archivos_contraloria/instructivo_llenado_serumich.pdf"
+            class="hover:underline">Instructivo de llenado de anexos</a
+          >
         </li>
         <li class="mb-1 sm:mb-2">
-          <a href="/https://contraloria.umich.mx/index.php/portal/entrega_recepcion" class="hover:underline">
+          <a target="_blank" href="/" class="hover:underline"
+            >Plantillas de anexos</a
+          >
+        </li>
+        <li class="mb-1 sm:mb-2">
+          <a
+            href="/https://contraloria.umich.mx/index.php/portal/entrega_recepcion"
+            class="hover:underline"
+          >
             Circulares emitidas por el OIC (Órgano Interno de Control)
           </a>
         </li>
