@@ -7,6 +7,7 @@
   let role = "";
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
+  let users = [];
 
   function toggleSidebar() {
     isSidebarOpen = !isSidebarOpen;
@@ -69,7 +70,41 @@
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
+
+    getUsers(token);
   });
+
+  function getUsers(token) {
+    const url = "http://localhost:8000/users?skip=0&limit=10"; // Añade los parámetros de paginación
+
+    return fetch(url, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${token}`, // Agrega el token aquí
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Usuarios obtenidos:", data);
+        users = data; // Asigna los datos a una variable reactiva
+      })
+      .catch((err) => {
+        console.error("Error al obtener los usuarios:", err.message);
+        alert(
+          "No se pudieron cargar los usuarios. Por favor, intenta nuevamente.",
+        );
+      });
+  }
+
+  function goBakc() {
+    window.history.back();
+  }
 </script>
 
 <div class="container">
@@ -126,8 +161,35 @@
   </div>
 
   <div class="content">
+    <button type="button"  class="btn preset-secondary" on:click={goBakc}>
+      <span>Button</span>
+      <span>&rarr;</span>
+    </button>
     <h1>Dashboard</h1>
     <p>Bienvenido, {username}.</p>
+
+    <h1>Users</h1>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>actions</th>
+        </tr>
+      </thead>
+      <tbody>
+         {#each users as user}
+          <tr>
+            <td>{user.id}</td>
+            <td>{user.username}</td>
+            <td>{user.email}</td>
+            <td><button type="button" class="btn btn-lg preset-filled" >editar</button></td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
   </div>
 </div>
 

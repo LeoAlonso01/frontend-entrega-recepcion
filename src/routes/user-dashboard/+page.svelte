@@ -70,6 +70,7 @@
       window.location.href = "/login";
     }
   });
+  
 </script>
 
 <div class="container">
@@ -96,7 +97,7 @@
 
     <ul>
       <li>
-        <a href="/settings" class="logo-item">
+        <a href="/user-dashboard/anexos" class="logo-item">
           <i class="fa-solid fa-pen"></i>
           <!-- Ícono de configuración -->
           <span>Anexos</span>
@@ -126,6 +127,14 @@
 </div>
 
 <style>
+  .sidebar ul li a {
+    transition: all 0.3s ease;
+  }
+
+  .sidebar ul li a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    padding-left: 15px;
+  }
   .container {
     display: flex;
     height: 100vh;
@@ -136,7 +145,20 @@
     background-color: #2c3e50;
     color: white;
     padding: 5px;
-    transition: transform 0.3s ease;
+    transition:
+      transform 0.3s ease,
+      opacity 0.3s ease;
+    box-shadow: 4px 0px 10px rgba(0, 0, 0, 0.2);
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    background: linear-gradient(135deg, #2c3e50, #1a252f);
+  }
+  .sidebar:not(.active) {
+    opacity: 0;
+  }
+
+  .sidebar.active {
+    opacity: 1;
   }
 
   .sidebar.active {
@@ -166,7 +188,7 @@
 
   /* Estilos para el sidebar colapsado */
   .sidebar.collapsed {
-    width: 60px; /* Ancho reducido */
+    width: 70px; /* Ancho reducido */
   }
 
   .sidebar.collapsed ul li span {
@@ -180,6 +202,7 @@
   .sidebar.collapsed .logo-item {
     justify-content: center; /* Centrar iconos */
   }
+
   .collapse-toggle {
     font-size: 24px; /* Ajusta el tamaño del ícono */
     cursor: pointer;
@@ -193,4 +216,6 @@
   .collapse-toggle:hover {
     transform: scale(1.2); /* Escala el ícono al 120% */
   }
+
+  
 </style>

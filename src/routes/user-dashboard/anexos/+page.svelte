@@ -1,13 +1,16 @@
-<script lang="ts">
-  import { onMount } from "svelte";
+<script>
   import { Avatar } from "@skeletonlabs/skeleton";
-
+  import { onMount } from "svelte";
   let username = "";
   let email = "";
   let role = "";
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
-
+  let anexos = [
+    { id: 1, name: "Anexo 1", description: "Descripción del Anexo 1" },
+    { id: 2, name: "Anexo 2", description: "Descripción del Anexo 2" },
+    { id: 3, name: "Anexo 3", description: "Descripción del Anexo 3" },
+  ];
   function toggleSidebar() {
     isSidebarOpen = !isSidebarOpen;
   }
@@ -19,32 +22,6 @@
   function handleLogout() {
     localStorage.removeItem("token");
     window.location.href = "/login";
-  }
-
-  function isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      return Date.now() > expirationTime;
-    } catch (err) {
-      return true;
-    }
-  }
-
-  function notifyTokenExpiry(token: string) {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      const timeLeft = expirationTime - Date.now();
-
-      if (timeLeft > 0 && timeLeft < 5 * 60 * 1000) {
-        alert(
-          "Tu sesión está a punto de expirar. Por favor, inicia sesión nuevamente.",
-        );
-      }
-    } catch (err) {
-      console.error("Error al decodificar el token:", err);
-    }
   }
 
   onMount(() => {
@@ -70,9 +47,16 @@
       window.location.href = "/login";
     }
   });
+
+  function clickAnexo() {
+    console.log("Anexo clicked");
+  }
 </script>
 
+
+
 <div class="container">
+    
   <div
     class="sidebar"
     class:active={isSidebarOpen}
@@ -95,20 +79,14 @@
     </div>
 
     <ul>
-      <li>
-        <a href="/settings" class="logo-item">
-          <i class="fas fa-cog"></i>
+      <li on:mouseenter={clickAnexo} >
+        <a href="/user-dashboard/anexos" class="logo-item">
+          <i class="fa-solid fa-pen"></i>
           <!-- Ícono de configuración -->
-          <span>Administración</span>
+          <span>Anexos</span>
         </a>
       </li>
-      <li>
-        <a href="dashboard/users" class="logo-item">
-          <i class="fas fa-users"></i>
-          <!-- Ícono de usuarios -->
-          <span>Usuarios</span>
-        </a>
-      </li>
+
       <li>
         <a
           href="/"
@@ -124,14 +102,23 @@
       </li>
     </ul>
   </div>
-
   <div class="content">
-    <h1>Dashboard</h1>
-    <p>Bienvenido, {username}.</p>
+     {#each anexos as anexo}
+    <div class="anexo">
+      <h2>{anexo.name}</h2>
+      <p>{anexo.description}</p>
+    </div>
+  {/each}
   </div>
+ 
 </div>
 
 <style>
+  .anexo {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 10px 0;
+  }
   .sidebar ul li a {
     transition: all 0.3s ease;
   }
@@ -222,5 +209,10 @@
     transform: scale(1.2); /* Escala el ícono al 120% */
   }
 
+  .header.logo-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
   
 </style>

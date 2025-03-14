@@ -1,4 +1,6 @@
 <script lang="ts">
+  // boton desde skeleton ui
+  
   let username = ""; // Username
   let password = ""; // Password
   let error = ""; // Mensaje de error general
@@ -68,7 +70,7 @@
       <h1
         class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-gray-900"
       >
-        Ingrese su Correo Institucional y contraseña
+        Ingrese su nombre de usuario y contraseña
       </h1>
       <form on:submit|preventDefault={handleLogin}>
         <!-- Campo de correo -->
