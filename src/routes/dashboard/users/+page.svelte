@@ -162,7 +162,7 @@
 
   <div class="content">
     <button type="button"  class="btn preset-secondary" on:click={goBakc}>
-      <span>Button</span>
+      <span>regresar</span>
       <span>&rarr;</span>
     </button>
     <h1>Dashboard</h1>
