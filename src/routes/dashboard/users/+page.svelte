@@ -1,6 +1,7 @@
 <script lang="ts">
+  import Slider from "../../../lib/components/Slider.svelte";
   import { onMount } from "svelte";
-  import { Avatar } from "@skeletonlabs/skeleton";
+  import { authStore, authService } from "../../../lib/stores/auth";
 
   let username = "";
   let email = "";
@@ -8,10 +9,6 @@
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
   let users = [];
-
-  function toggleSidebar() {
-    isSidebarOpen = !isSidebarOpen;
-  }
 
   function toggleSidebarCollapse() {
     isSidebarCollapsed = !isSidebarCollapsed;
@@ -22,60 +19,22 @@
     window.location.href = "/login";
   }
 
-  function isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      return Date.now() > expirationTime;
-    } catch (err) {
-      return true;
-    }
-  }
-
-  function notifyTokenExpiry(token: string) {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      const timeLeft = expirationTime - Date.now();
-
-      if (timeLeft > 0 && timeLeft < 5 * 60 * 1000) {
-        alert(
-          "Tu sesión está a punto de expirar. Por favor, inicia sesión nuevamente.",
-        );
-      }
-    } catch (err) {
-      console.error("Error al decodificar el token:", err);
-    }
+  function regresar() {
+    if (role === "admin") window.location.href = "/dashboard/admin";
+    else if (role === "user") window.location.href = "/dashboard/user";
+    else window.history.back();
   }
 
   onMount(() => {
+    authService.checkAuth();
     const token = localStorage.getItem("token");
-
-    if (!token || isTokenExpired(token)) {
-      localStorage.removeItem("token");
-      alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
-      window.location.href = "/login";
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      username = payload.sub; // Nombre de usuario
-      email = payload.email; // Correo electrónico
-      role = payload.role; // Rol del usuario
-
-      notifyTokenExpiry(token);
-    } catch (err) {
-      console.error("Error al decodificar el token:", err.message);
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-    }
 
     getUsers(token);
   });
 
   function getUsers(token) {
-    const url = "http://localhost:8000/users?skip=0&limit=10"; // Añade los parámetros de paginación
+    //  const url = "http://localhost:8000/users?skip=0&limit=10"
+    const url = "http://148.216.111.144:8000/users?skip=0&limit=10"; // Añade los parámetros de paginación
 
     return fetch(url, {
       method: "GET",
@@ -101,91 +60,65 @@
         );
       });
   }
-
-  function goBakc() {
-    window.history.back();
-  }
 </script>
 
 <div class="container">
-  <div
-    class="sidebar"
-    class:active={isSidebarOpen}
-    class:collapsed={isSidebarCollapsed}
-  >
-    <button
-      class="collapse-toggle"
-      on:click={toggleSidebarCollapse}
-      aria-label="Toggle Sidebar Collapse"
-    >
-      {#if isSidebarCollapsed}
-        <i class="fa-solid fa-bars"></i> <!-- Ícono de barras -->
-      {:else}
-        <i class="fa-solid fa-xmark"></i> <!-- Ícono de "X" -->
-      {/if}
-    </button>
-    <div class="header logo-item">
-      <Avatar initials={username[0]} background="bg-primary-900" />
-      <span>{username}</span>
-    </div>
+  <!-- Sidebar -->
+  <Slider
+    username={$authStore.user.username}
+    email={$authStore.user.email}
+    role={$authStore.user.role}
+    isOpen={isSidebarOpen}
+    isCollapsed={isSidebarCollapsed}
+    {isSidebarOpen}
+    {isSidebarCollapsed}
+    on:toggleSidebarCollapse={toggleSidebarCollapse}
+    on:logout={handleLogout}
+  />
 
-    <ul>
-      <li>
-        <a href="/settings" class="logo-item">
-          <i class="fas fa-cog"></i>
-          <!-- Ícono de configuración -->
-          <span>Administración</span>
-        </a>
-      </li>
-      <li>
-        <a href="dashboard/users" class="logo-item">
-          <i class="fas fa-users"></i>
-          <!-- Ícono de usuarios -->
-          <span>Usuarios</span>
-        </a>
-      </li>
-      <li>
-        <a
-          href="/"
-          role="button"
-          on:click={handleLogout}
-          on:keydown={(e) => e.key === "Enter" && handleLogout()}
-          class="logo-item"
-        >
-          <i class="fa-solid fa-arrow-right-from-bracket"></i>
-          <!-- Ícono de logout -->
-          <span>Cerrar Sesión</span>
-        </a>
-      </li>
-    </ul>
-  </div>
-
+  <!-- Contenido principal -->
   <div class="content">
-    <button type="button"  class="btn preset-secondary" on:click={goBakc}>
-      <span>regresar</span>
-      <span>&rarr;</span>
+    <button type="button" on:click={regresar} class="btn preset-secondary">
+      <span>Regresar</span>
+      <span>&larr;</span>
     </button>
     <h1>Dashboard</h1>
     <p>Bienvenido, {username}.</p>
 
-    <h1>Users</h1>
+    <h1>Usuarios</h1>
 
+    <!-- Tabla de usuarios -->
     <table>
       <thead>
         <tr>
           <th>ID</th>
-          <th>Name</th>
+          <th>Nombre</th>
           <th>Email</th>
-          <th>actions</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
-         {#each users as user}
+        <!-- Si no se han cargado los usuarios poner un skeleton -->
+        {#if users.length === 0}
+          <tr>
+            <td colspan="4"
+              >
+              <!-- <div class="spinner"></div> -->
+              <div class="bounce1"></div>
+              <div class="bounce2"></div>
+              <div class="bounce3"></div>
+            </td>
+          </tr>
+        {/if}
+        {#each users as user}
           <tr>
             <td>{user.id}</td>
             <td>{user.username}</td>
             <td>{user.email}</td>
-            <td><button type="button" class="btn btn-lg preset-filled" >editar</button></td>
+            <td>
+              <button type="button" class="btn btn-edit"> Editar </button>
+              <button type="button" class="btn btn-delete"> Eliminar </button>
+            </td>
           </tr>
         {/each}
       </tbody>
@@ -194,95 +127,139 @@
 </div>
 
 <style>
-  .sidebar ul li a {
-    transition: all 0.3s ease;
-  }
-
-  .sidebar ul li a:hover {
-    background: rgba(255, 255, 255, 0.1);
-    padding-left: 15px;
-  }
+  /* Estilos generales */
   .container {
     display: flex;
     height: 100vh;
+    background-color: #f5f6fa;
   }
 
-  .sidebar {
-    width: 250px;
-    background-color: #2c3e50;
-    color: white;
-    padding: 5px;
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-    box-shadow: 4px 0px 10px rgba(0, 0, 0, 0.2);
-    border-top-right-radius: 10px;
-    border-bottom-right-radius: 10px;
-    background: linear-gradient(135deg, #2c3e50, #1a252f);
-  }
-  .sidebar:not(.active) {
-    opacity: 0;
+  .spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #333;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
   }
 
-  .sidebar.active {
-    opacity: 1;
-  }
-
-  .sidebar.active {
-    transform: translateX(0);
-  }
-
-  .sidebar:not(.active) {
-    transform: translateX(-250px); /* Oculta el sidebar */
-  }
-
-  .header {
-    background-color: #34495e;
-    color: white;
-    padding: 10px;
-    text-align: right;
-  }
-
-  span {
-    margin-left: 10px;
-  }
-
-  @media (max-width: 768px) {
-    .sidebar:not(.active) {
-      transform: translateX(-250px);
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
     }
   }
 
-  /* Estilos para el sidebar colapsado */
-  .sidebar.collapsed {
-    width: 70px; /* Ancho reducido */
+  .bounce1,
+  .bounce2,
+  .bounce3 {
+    width: 15px;
+    height: 15px;
+    background-color: #333;
+    border-radius: 100%;
+    display: inline-block;
+    animation: bounce 1.4s infinite ease-in-out;
   }
 
-  .sidebar.collapsed ul li span {
-    display: none; /* Ocultar texto cuando está colapsado */
+  .bounce1 {
+    animation-delay: -0.32s;
   }
 
-  .sidebar.collapsed .header span {
-    display: none; /* Ocultar nombre de usuario cuando está colapsado */
+  .bounce2 {
+    animation-delay: -0.16s;
   }
 
-  .sidebar.collapsed .logo-item {
-    justify-content: center; /* Centrar iconos */
+  @keyframes bounce {
+    0%,
+    80%,
+    100% {
+      transform: scale(0);
+    }
+    40% {
+      transform: scale(1);
+    }
   }
 
-  .collapse-toggle {
-    font-size: 24px; /* Ajusta el tamaño del ícono */
-    cursor: pointer;
-    background: none;
-    border: none;
+  /* Contenido principal */
+  .content {
+    flex: 1;
+    padding: 20px;
+    background-color: white;
+    border-radius: 15px;
+    margin: 20px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+  }
+
+  p {
+    color: #7f8c8d;
+  }
+
+  /* Tabla */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  th,
+  td {
+    padding: 12px 15px;
+    text-align: left;
+    color: #2c3e50;
+  }
+
+  th {
+    background-color: #34495e;
     color: white;
-    transition: transform 0.3s ease; /* Efecto de transición */
+    font-weight: bold;
   }
 
-  /* Hacer el ícono más grande al pasar el ratón */
-  .collapse-toggle:hover {
-    transform: scale(1.2); /* Escala el ícono al 120% */
+  tr {
+    border-bottom: 1px solid #ecf0f1;
   }
 
-  
+  tr:hover {
+    background-color: #f5f6fa;
+  }
+
+  /* Botones */
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn.preset-secondary {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+  }
+
+  .btn.preset-secondary:hover {
+    background: linear-gradient(135deg, #2980b9, #3498db);
+  }
+
+  .btn-edit {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    color: white;
+  }
+
+  .btn-edit:hover {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+  }
+  .btn-delete {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+  }
 </style>

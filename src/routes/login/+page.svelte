@@ -1,6 +1,6 @@
 <script lang="ts">
   // boton desde skeleton ui
-  
+
   let username = ""; // Username
   let password = ""; // Password
   let error = ""; // Mensaje de error general
@@ -14,13 +14,16 @@
 
     try {
       // Enviar datos al servidor
-      const response = await fetch("http://localhost:8000/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded", // FastAPI espera este formato
+      const response = await fetch(
+        "http://148.216.111.144:8000/token" /** "http://localhost:8000/token"  */,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded", // FastAPI espera este formato
+          },
+          body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
         },
-        body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
-      });
+      );
 
       // Manejar la respuesta
       const data = await response.json();
@@ -55,13 +58,13 @@
 </script>
 
 <svelte:head>
-  <title>Login</title>
+  <title>Users</title>
 </svelte:head>
 
 <div class="flex flex-col lg:flex-row h-screen">
   <!-- Columna izquierda: Formulario de login -->
   <div class="flex-1 flex justify-center items-center bg-gray-50 p-4 lg:p-12">
-    <div class="w-full max-w-md bg-white rounded-lg shadow-md p-6 lg:p-8">
+    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-6 lg:p-8">
       <img
         src="../oic.jpg"
         alt="Logo"
@@ -78,13 +81,14 @@
           <label
             for="email"
             class="block text-sm sm:text-base font-medium text-gray-700"
-            >Nombre de Usuario</label
           >
+            Nombre de Usuario
+          </label>
           <input
             type="text"
             id="username"
             bind:value={username}
-            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
             required
           />
           {#if fieldErrors.username}
@@ -99,13 +103,14 @@
           <label
             for="password"
             class="block text-sm sm:text-base font-medium text-gray-700"
-            >Contraseña</label
           >
+            Contraseña
+          </label>
           <input
             type="password"
             id="password"
             bind:value={password}
-            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
             required
           />
           {#if fieldErrors.password}
@@ -123,7 +128,7 @@
         <!-- Botón de envío -->
         <button
           type="submit"
-          class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-2 px-4 rounded-md hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200"
         >
           Iniciar sesión
         </button>
