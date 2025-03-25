@@ -2,13 +2,45 @@
   import Slider from "../../../lib/components/Slider.svelte";
   import { onMount } from "svelte";
   import { authStore, authService } from "../../../lib/stores/auth";
+  import AgGridSvelte from "ag-grid-svelte";
+  import "ag-grid-community/styles/ag-grid.css";
+  import "ag-grid-community/styles/ag-theme-alpine.css";
 
   let username = "";
   let email = "";
   let role = "";
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
-  let users = [];
+
+  function click(){
+    console.log("click");
+  }
+
+  // Configuración de AG Grid
+  const columnDefs = [
+    { headerName: "ID", field: "id", sortable: true, filter: true },
+    { headerName: "Nombre", field: "username", sortable: true, filter: true },
+    { headerName: "Email", field: "email", sortable: true, filter: true },
+    { 
+      headerName: "Acciones",
+      cellRenderer: (params) => `
+        <button on:click={click} class="btn-edit">Editar</button>
+        <button on:click={click} class="btn-delete">Eliminar</button>
+      `,
+      suppressMenu: true
+    }
+  ];
+
+  let gridOptions = {
+    defaultColDef: {
+      resizable: true,
+      flex: 1
+    },
+    domLayout: 'autoHeight' as 'autoHeight'
+  };
+
+  let rowData = [];
+  const url = "http://localhost:8000/users?skip=0&limit=10";
 
   function toggleSidebarCollapse() {
     isSidebarCollapsed = !isSidebarCollapsed;
@@ -25,45 +57,34 @@
     else window.history.back();
   }
 
-  onMount(() => {
+  onMount(async () => {
     authService.checkAuth();
     const token = localStorage.getItem("token");
-
-    getUsers(token);
+    await loadUsers(token);
   });
 
-  function getUsers(token) {
-    //  const url = "http://localhost:8000/users?skip=0&limit=10"
-    const url = "http://148.216.111.144:8000/users?skip=0&limit=10"; // Añade los parámetros de paginación
-
-    return fetch(url, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-        Authorization: `Bearer ${token}`, // Agrega el token aquí
-      },
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Error HTTP: ${response.status}`);
+  async function loadUsers(token) {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${token}`
         }
-        return response.json();
-      })
-      .then((data) => {
-        console.log("Usuarios obtenidos:", data);
-        users = data; // Asigna los datos a una variable reactiva
-      })
-      .catch((err) => {
-        console.error("Error al obtener los usuarios:", err.message);
-        alert(
-          "No se pudieron cargar los usuarios. Por favor, intenta nuevamente.",
-        );
       });
+
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+      const data = await response.json();
+      rowData = data; // Asignamos directamente a rowData que está bindeado al grid
+    } catch (err) {
+      console.error("Error al obtener usuarios:", err);
+      alert("No se pudieron cargar los usuarios. Por favor, intenta nuevamente.");
+    }
   }
 </script>
 
 <div class="container">
-  <!-- Sidebar -->
   <Slider
     username={$authStore.user.username}
     email={$authStore.user.email}
@@ -76,77 +97,45 @@
     on:logout={handleLogout}
   />
 
-  <!-- Contenido principal -->
   <div class="content">
-    <button type="button" on:click={regresar} class="btn preset-secondary">
-      <span>Regresar</span>
-      <span>&larr;</span>
-    </button>
-    <h1>Dashboard</h1>
-    <p>Bienvenido, {username}.</p>
+    <div class="header">
+      <button type="button" on:click={regresar} class="btn preset-secondary">
+        <span>Regresar</span>
+        <span>&larr;</span>
+      </button>
+      <h1>Usuarios</h1>
+      <p>Bienvenido, {$authStore.user.username}.</p>
+    </div>
 
-    <h1>Usuarios</h1>
-
-    <!-- Tabla de usuarios -->
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Nombre</th>
-          <th>Email</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Si no se han cargado los usuarios poner un skeleton -->
-        {#if users.length === 0}
-          <tr>
-            <td colspan="4"
-              >
-              <!-- <div class="spinner"></div> -->
-              <div class="bounce1"></div>
-              <div class="bounce2"></div>
-              <div class="bounce3"></div>
-            </td>
-          </tr>
-        {/if}
-        {#each users as user}
-          <tr>
-            <td>{user.id}</td>
-            <td>{user.username}</td>
-            <td>{user.email}</td>
-            <td>
-              <button type="button" class="btn btn-edit"> Editar </button>
-              <button type="button" class="btn btn-delete"> Eliminar </button>
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+    <div class="ag-theme-alpine" style="width: 100%; height: 70vh;">
+      <AgGridSvelte 
+        rowData={rowData}
+        columnDefs={columnDefs}
+        gridOptions={gridOptions}
+      />
+    </div>
   </div>
 </div>
 
 <style>
   /* Estilos generales */
+
   .container {
     display: flex;
     height: 100vh;
-    background-color: #f5f6fa;
+    width: 100vw;
+    background-color: #7383c4;
   }
 
-  .spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-left-color: #333;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+  .content {
+    flex: 1;
+    padding: 20px;
+    background-color: white;
+    margin: 0; /* Eliminamos el margen */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100vh;
   }
 
   .bounce1,
@@ -187,6 +176,14 @@
     border-radius: 15px;
     margin: 20px;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: calc(100% - 40px);
+  }
+
+  .header {
+    margin-bottom: 20px;
   }
 
   h1 {
@@ -198,21 +195,22 @@
     color: #7f8c8d;
   }
 
-  /* Tabla */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
+  /* Contenedor de la tabla */
+  .table-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
 
+  /* Tabla */
+
   th,
   td {
-    padding: 12px 15px;
+    padding: 8px;
     text-align: left;
     color: #2c3e50;
+    font-weight: bolder;
   }
 
   th {
@@ -221,9 +219,9 @@
     font-weight: bold;
   }
 
-  tr {
+  /* tr {
     border-bottom: 1px solid #ecf0f1;
-  }
+  } */
 
   tr:hover {
     background-color: #f5f6fa;
@@ -239,6 +237,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    margin-right: 8px;
+  }
+
+  .btn:last-child {
+    margin-right: 0;
   }
 
   .btn.preset-secondary {
@@ -258,8 +261,27 @@
   .btn-edit:hover {
     background: linear-gradient(135deg, #27ae60, #2ecc71);
   }
+
   .btn-delete {
     background: linear-gradient(135deg, #e74c3c, #c0392b);
     color: white;
+  }
+  :global(.btn-edit) {
+    background: #2ecc71;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    margin-right: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  :global(.btn-delete) {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
   }
 </style>

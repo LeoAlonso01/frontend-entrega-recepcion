@@ -15,7 +15,7 @@
     try {
       // Enviar datos al servidor
       const response = await fetch(
-        "http://148.216.111.144:8000/token" /** "http://localhost:8000/token"  */,
+        /* "http://148.216.111.144:8000/token" */ "http://localhost:8000/token" ,
         {
           method: "POST",
           headers: {
