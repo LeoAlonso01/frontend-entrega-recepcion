@@ -1,11 +1,10 @@
 <script lang="ts">
-  // boton desde skeleton ui
+  import { goto } from '$app/navigation';
 
   let username = ""; // Username
   let password = ""; // Password
   let error = ""; // Mensaje de error general
   let fieldErrors: { [key: string]: string } = {}; // Errores por campo
-  let isLoading = false; // Estado de carga
 
   async function handleLogin() {
     // Reiniciar errores
@@ -51,14 +50,16 @@
       localStorage.setItem("user", JSON.stringify(data)); // Guardar la información del usuario
       console.log("Usuario identificado");
       window.location.href = "/loading"; // Redirigir a la página de carga intermedia
+      await goto("/dashboard"); // Redirigir al dashboard
     } catch (err) {
       error = "Error de conexión. Inténtalo de nuevo.";
+      console.error("Error al iniciar sesión:", err);
     }
   }
 </script>
 
 <svelte:head>
-  <title>Users</title>
+  <title>Login</title>
 </svelte:head>
 
 <div class="flex flex-col lg:flex-row h-screen">
@@ -133,12 +134,6 @@
           Iniciar sesión
         </button>
       </form>
-      <!-- enlace al registro -->
-      <!-- <div class="mt-4 sm:mt-6 text-center text-sm sm:text-base">
-        <a href="/register" class="text-indigo-600 hover:underline"
-          >¿No tienes cuenta? Regístrate</a
-        >
-      </div> -->
     </div>
   </div>
 
