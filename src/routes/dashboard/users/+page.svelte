@@ -1,35 +1,51 @@
 <script lang="ts">
   import Slider from "../../../lib/components/Slider.svelte";
-  //import { goto } from '$app/navigation';
+  //import { goto } from "$app/navigation";
+  import ModalUsers from "../../../lib/components/ModalUsers.svelte";
   import { onMount } from "svelte";
   import { authStore, authService } from "../../../lib/stores/auth";
+  import Button from "../../../lib/components/Button.svelte";
   import AgGridSvelte from "ag-grid-svelte";
   import "ag-grid-community/styles/ag-grid.css";
   import "ag-grid-community/styles/ag-theme-alpine.css";
 
-  let role = "";
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
   let retryCount = 0;
   let error: string | null = null;
   let loading = true;
   const MAX_RETRIES = 3;
+  let isModalOpen = false;
 
-  const onClick = (event:any) => {
-    console.log("click");
+  function openModal() {
+    isModalOpen = true;
   }
 
-  const onCellClicked = (event:any) => {
-    console.log("cell clicked");
+  ////////////////////////////////////////// funcines de los botonesm ////////////////////////////////////////////////////
+  // SVG para la flecha
+  const arrowIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  `;
+
+  // SVG para el ícono de "+"
+  const plusIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>
+  `;
+
+  // funcion para regresar
+  function handleBack(event: CustomEvent): void {
+    history.back();
+    console.log("Regresando...");
   }
 
-  const onRowClicked = (event:any) => {
-    console.log("row clicked");
-  }
-
-  const onEdit = (event:any) => {
-    console.log("edit");
-    goto('/users/:${id}/edit');
+  // funcion para crear usuario
+  function handleCreateUser(event: CustomEvent): void {
+    console.log("Creando usuario...");
+    openModal();
   }
 
   // Configuración de AG Grid
@@ -42,7 +58,8 @@
         return `
         <button on:click={onEdit} class="bg-transparent hover:bg-amber-500 text-amber-700 font-semibold hover:text-white py-1 px-4 border border-amber-500 hover:border-transparent rounded">Editar</button>
         <button on:click={onClick} class="bg-transparent hover:bg-red-600 text-red-700 font-semibold hover:text-white py-1 px-4 border border-red-500 hover:border-transparent rounded">Eliminar</button>
-      `},
+      `;
+      },
       suppressMenu: true,
     },
   ];
@@ -66,21 +83,34 @@
     window.location.href = "/login";
   }
 
-  function regresar() {
-    if (role === "admin") window.location.href = "/dashboard/admin";
-    else if (role === "user") window.location.href = "/dashboard/user";
-    else window.history.back();
+  // Función mejorada para cargar usuarios
+  async function loadUsers() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    window.location.href = "/login";
+    return;
   }
 
- // Función mejorada para cargar usuarios
- async function loadUsers() {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        window.location.href = "/login";
-        return;
-      }
+  try {
+    // Verificar si el token ha expirado
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const expirationTime = payload.exp * 1000;
+    if (Date.now() > expirationTime) {
+      alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+      return;
+    }
+  } catch (err) {
+    console.error("Error al decodificar el token:", err);
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+    return;
+  }
 
+  // Cargar usuarios con reintentos
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
       const response = await fetch("http://localhost:8000/users?skip=0&limit=100", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -95,27 +125,25 @@
       const data = await response.json();
       rowData = data;
       error = null;
-      retryCount = 0;
+      return;
     } catch (err) {
-      console.error("Error al obtener usuarios:", err);
+      console.error(`Intento ${i + 1}: Error al obtener usuarios`, err);
       error = "Error al cargar los usuarios";
-      
-      if (retryCount < MAX_RETRIES) {
-        retryCount++;
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Espera 2 segundos
-        return loadUsers(); // Reintentar
+
+      if (i < MAX_RETRIES - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Reintentar
       } else {
         error = "No se pudo cargar la información después de varios intentos";
       }
-    } finally {
-      loading = false;
     }
   }
+}
 
-  onMount(async () => {
-    authService.checkAuth();
-    await loadUsers();
-  });
+onMount(async () => {
+  authService.checkAuth();
+  await loadUsers();
+});
+
 </script>
 
 <div class="container">
@@ -133,35 +161,40 @@
 
   <div class="content">
     <div class="header">
-      <button type="button" on:click={regresar} class="bg-blue-400 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded">
-        <span>Regresar</span>
-        <span>&larr;</span>
-      </button>
+      <Button
+        label="Regresar"
+        variant="primary"
+        icon={arrowIcon}
+        on:click={handleBack}
+      />
       <h1 class="h1">Usuarios</h1>
       <p class="h3">Bienvenido, {$authStore.user.username}.</p>
     </div>
     <!-- boton para crear usuario -->
     <div class="md:container md:mx-auto btn-crear">
-      <button
-        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        on:click={onClick}>Crear Usuario</button
-      >
+      <!-- Button Crear Usuario -->
+      <Button
+        label="Crear Usuario"
+        variant="primary"
+        icon={plusIcon}
+        on:click={handleCreateUser}
+      />
     </div>
 
     <!-- AG Grid -->
-    <div class="ag-theme-alpine" style="width: 800px; height: 100px;">
-      <AgGridSvelte 
-      rowData={rowData} 
-      gridOptions={gridOptions}
-      columnDefs={columnDefs}
-      on:cellClicked={onCellClicked}
-      on:onClick={onClick}
-      on:rowClicked={onRowClicked}
-      on:edit={onEdit}
-       />
+    <div class="ag-theme-alpine" style="width: 100%; height: 100px;">
+      <AgGridSvelte {rowData} {gridOptions} {columnDefs} />
     </div>
   </div>
 </div>
+
+<!-- Modal para crear usuarios -->
+<ModalUsers
+  isOpen={isModalOpen}
+  title="Crear nuevo usuario"
+  on:close={() => (isModalOpen = false)}
+  on:submit={handleCreateUser}
+/>
 
 <style>
   /* Estilos generales */
@@ -182,7 +215,6 @@
     overflow: hidden;
     height: 200%;
     width: 300px;
-
   }
 
   .btn-crear {
@@ -202,7 +234,6 @@
   }
 
   /* Contenido principal */
-
 
   .header {
     margin-bottom: 20px;
