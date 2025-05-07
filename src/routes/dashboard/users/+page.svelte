@@ -2,6 +2,7 @@
   import Slider from "../../../lib/components/Slider.svelte";
   //import { goto } from "$app/navigation";
   import ModalUsers from "../../../lib/components/ModalUsers.svelte";
+  import { toast } from "svelte-sonner";
   import { onMount } from "svelte";
   import { authStore, authService } from "../../../lib/stores/auth";
   import Button from "../../../lib/components/Button.svelte";
@@ -9,19 +10,15 @@
   import "ag-grid-community/styles/ag-grid.css";
   import "ag-grid-community/styles/ag-theme-alpine.css";
 
+
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
-  let retryCount = 0;
   let error: string | null = null;
-  let loading = true;
   const MAX_RETRIES = 3;
   let isModalOpen = false;
+  let shouldBlockRefresh = true; // Variable para controlar el bloqueo de la recarga
 
-  function openModal() {
-    isModalOpen = true;
-  }
-
-  ////////////////////////////////////////// funcines de los botonesm ////////////////////////////////////////////////////
+  ////////////////////////////////////////// funcion de los botones ////////////////////////////////////////////////////
   // SVG para la flecha
   const arrowIcon = `
     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -43,9 +40,20 @@
   }
 
   // funcion para crear usuario
-  function handleCreateUser(event: CustomEvent): void {
-    console.log("Creando usuario...");
-    openModal();
+  function handleCreateUser(newUser: any): void {
+    // Aquí puedes manejar la creación del nuevo usuario
+    rowData = [...rowData, newUser];
+    //gridApi.applyTransaction({ add: [newUser] });
+    console.log("Nuevo usuario creado:", newUser);
+    isModalOpen = false; // Cerrar el modal después de crear el usuario
+    loadUsers(); // Recargar la lista de usuarios después de crear uno nuevo
+
+
+  }
+  
+
+  function handleCreateUserClick(event: CustomEvent): void {
+    isModalOpen = true;
   }
 
   // Configuración de AG Grid
@@ -73,6 +81,7 @@
   };
 
   let rowData = [];
+  let gridApi: any; // Define gridApi
 
   function toggleSidebarCollapse() {
     isSidebarCollapsed = !isSidebarCollapsed;
@@ -85,65 +94,80 @@
 
   // Función mejorada para cargar usuarios
   async function loadUsers() {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    window.location.href = "/login";
-    return;
-  }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
 
-  try {
-    // Verificar si el token ha expirado
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const expirationTime = payload.exp * 1000;
-    if (Date.now() > expirationTime) {
-      alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
+    try {
+      // Verificar si el token ha expirado
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const expirationTime = payload.exp * 1000;
+      if (Date.now() > expirationTime) {
+        alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+        return;
+      }
+    } catch (err) {
+      console.error("Error al decodificar el token:", err);
       localStorage.removeItem("token");
       window.location.href = "/login";
       return;
     }
-  } catch (err) {
-    console.error("Error al decodificar el token:", err);
-    localStorage.removeItem("token");
-    window.location.href = "/login";
-    return;
-  }
 
-  // Cargar usuarios con reintentos
-  for (let i = 0; i < MAX_RETRIES; i++) {
-    try {
-      const response = await fetch("http://localhost:8000/users?skip=0&limit=100", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+    // Cargar usuarios con reintentos
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/users?skip=0&limit=100",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
 
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
 
-      const data = await response.json();
-      rowData = data;
-      error = null;
-      return;
-    } catch (err) {
-      console.error(`Intento ${i + 1}: Error al obtener usuarios`, err);
-      error = "Error al cargar los usuarios";
+        const data = await response.json();
+        rowData = data;
+        error = null;
+        return;
+      } catch (err) {
+        console.error(`Intento ${i + 1}: Error al obtener usuarios`, err);
+        error = "Error al cargar los usuarios";
 
-      if (i < MAX_RETRIES - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Reintentar
-      } else {
-        error = "No se pudo cargar la información después de varios intentos";
+        if (i < MAX_RETRIES - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // Reintentar
+        } else {
+          error = "No se pudo cargar la información después de varios intentos";
+        }
       }
     }
   }
-}
 
-onMount(async () => {
+  onMount(async () => {
+  
   authService.checkAuth();
   await loadUsers();
-});
 
+  });
+  // Bloquear la recarga de la página
+  window.addEventListener("beforeunload", (event) => {
+    if (shouldBlockRefresh) {
+      event.preventDefault();
+      event.returnValue = "¿Estas seguro de querer recargar la página?, Los datos podrian perderse"; // Chrome requires this to show the confirmation dialog
+    }
+  });
+  // Desbloquear la recarga de la página al cerrar el modal
+  window.addEventListener("unload", () => {
+    shouldBlockRefresh = false;
+  });
 </script>
 
 <div class="container">
@@ -177,17 +201,15 @@ onMount(async () => {
         label="Crear Usuario"
         variant="primary"
         icon={plusIcon}
-        on:click={handleCreateUser}
+        on:click={handleCreateUserClick}
       />
     </div>
-
     <!-- AG Grid -->
     <div class="ag-theme-alpine" style="width: 100%; height: 100px;">
       <AgGridSvelte {rowData} {gridOptions} {columnDefs} />
     </div>
   </div>
 </div>
-
 <!-- Modal para crear usuarios -->
 <ModalUsers
   isOpen={isModalOpen}
