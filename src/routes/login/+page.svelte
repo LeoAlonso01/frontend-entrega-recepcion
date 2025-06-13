@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-
   let username = ""; // Username
   let password = ""; // Password
   let error = ""; // Mensaje de error general

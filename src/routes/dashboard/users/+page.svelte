@@ -11,17 +11,12 @@
 
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
-  let retryCount = 0;
   let error: string | null = null;
-  let loading = true;
   const MAX_RETRIES = 3;
   let isModalOpen = false;
 
-  function openModal() {
-    isModalOpen = true;
-  }
 
-  ////////////////////////////////////////// funcines de los botonesm ////////////////////////////////////////////////////
+  ////////////////////////////////////////// funcion de los botones ////////////////////////////////////////////////////
   // SVG para la flecha
   const arrowIcon = `
     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -45,8 +40,14 @@
   // funcion para crear usuario
   function handleCreateUser(event: CustomEvent): void {
     console.log("Creando usuario...");
-    openModal();
+    
+    
   }
+
+  function handleCreateUserClick(event: CustomEvent): void {
+    isModalOpen = true;
+  }
+
 
   // Configuración de AG Grid
   const columnDefs = [
@@ -143,7 +144,6 @@ onMount(async () => {
   authService.checkAuth();
   await loadUsers();
 });
-
 </script>
 
 <div class="container">
@@ -177,17 +177,15 @@ onMount(async () => {
         label="Crear Usuario"
         variant="primary"
         icon={plusIcon}
-        on:click={handleCreateUser}
+        on:click={handleCreateUserClick}
       />
     </div>
-
     <!-- AG Grid -->
     <div class="ag-theme-alpine" style="width: 100%; height: 100px;">
       <AgGridSvelte {rowData} {gridOptions} {columnDefs} />
     </div>
   </div>
 </div>
-
 <!-- Modal para crear usuarios -->
 <ModalUsers
   isOpen={isModalOpen}
