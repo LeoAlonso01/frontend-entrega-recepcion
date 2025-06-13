@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-
+  import { toast } from "svelte-sonner";
   const dispatch = createEventDispatcher();
 
   export let isOpen = false;
