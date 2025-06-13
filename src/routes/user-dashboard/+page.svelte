@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Slider from "../../lib/components/Slider.svelte";
   import { onMount } from "svelte";
   import { Avatar } from "@skeletonlabs/skeleton";
 
@@ -74,51 +75,19 @@
 </script>
 
 <div class="container">
-  <div
-    class="sidebar"
-    class:active={isSidebarOpen}
-    class:collapsed={isSidebarCollapsed}
-  >
-    <button
-      class="collapse-toggle"
-      on:click={toggleSidebarCollapse}
-      aria-label="Toggle Sidebar Collapse"
-    >
-      {#if isSidebarCollapsed}
-        <i class="fa-solid fa-bars"></i> <!-- Ícono de barras -->
-      {:else}
-        <i class="fa-solid fa-xmark"></i> <!-- Ícono de "X" -->
-      {/if}
-    </button>
-    <div class="header logo-item">
-      <Avatar initials={username[0]} background="bg-primary-900" />
-      <span>{username}</span>
-    </div>
 
-    <ul>
-      <li>
-        <a href="/user-dashboard/anexos" class="logo-item">
-          <i class="fa-solid fa-pen"></i>
-          <!-- Ícono de configuración -->
-          <span>Anexos</span>
-        </a>
-      </li>
-
-      <li>
-        <a
-          href="/"
-          role="button"
-          on:click={handleLogout}
-          on:keydown={(e) => e.key === "Enter" && handleLogout()}
-          class="logo-item"
-        >
-          <i class="fa-solid fa-arrow-right-from-bracket"></i>
-          <!-- Ícono de logout -->
-          <span>Cerrar Sesión</span>
-        </a>
-      </li>
-    </ul>
-  </div>
+  
+  <Slider
+    username={username}
+    email={email}
+    role={role}
+    isOpen={isSidebarOpen}
+    isCollapsed={isSidebarCollapsed}
+    isSidebarOpen={isSidebarOpen}
+    isSidebarCollapsed={isSidebarCollapsed}
+    on:toggleSidebarCollapse={toggleSidebarCollapse}
+    on:logout={handleLogout}
+  />
 
   <div class="content">
     <h1>Dashboard</h1>

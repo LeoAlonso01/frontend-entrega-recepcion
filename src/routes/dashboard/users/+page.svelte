@@ -1,17 +1,80 @@
 <script lang="ts">
+  import Slider from "../../../lib/components/Slider.svelte";
+  //import { goto } from "$app/navigation";
+  import ModalUsers from "../../../lib/components/ModalUsers.svelte";
+  import { toast } from "svelte-sonner";
   import { onMount } from "svelte";
-  import { Avatar } from "@skeletonlabs/skeleton";
+  import { authStore, authService } from "../../../lib/stores/auth";
+  import Button from "../../../lib/components/Button.svelte";
+  import AgGridSvelte from "ag-grid-svelte";
+  import "ag-grid-community/styles/ag-grid.css";
+  import "ag-grid-community/styles/ag-theme-alpine.css";
 
-  let username = "";
-  let email = "";
-  let role = "";
+
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
-  let users = [];
+  let error: string | null = null;
+  const MAX_RETRIES = 3;
+  let isModalOpen = false;
 
-  function toggleSidebar() {
-    isSidebarOpen = !isSidebarOpen;
+  function openModal() {
+    isModalOpen = true;
   }
+
+  ////////////////////////////////////////// funcion de los botones ////////////////////////////////////////////////////
+  // SVG para la flecha
+  const arrowIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  `;
+
+  // SVG para el ícono de "+"
+  const plusIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>
+  `;
+
+  // funcion para regresar
+  function handleBack(event: CustomEvent): void {
+    history.back();
+    console.log("Regresando...");
+  }
+
+  // funcion para crear usuario
+  function handleCreateUser(event: CustomEvent): void {
+    console.log("Creando usuario...");
+    openModal();
+  }
+
+
+  // Configuración de AG Grid
+  const columnDefs = [
+    { headerName: "Nombre", field: "username", sortable: true, filter: true },
+    { headerName: "Email", field: "email", sortable: true, filter: true },
+    {
+      headerName: "Acciones",
+      cellRenderer: (params: any) => {
+        return `
+        <button on:click={onEdit} class="bg-transparent hover:bg-amber-500 text-amber-700 font-semibold hover:text-white py-1 px-4 border border-amber-500 hover:border-transparent rounded">Editar</button>
+        <button on:click={onClick} class="bg-transparent hover:bg-red-600 text-red-700 font-semibold hover:text-white py-1 px-4 border border-red-500 hover:border-transparent rounded">Eliminar</button>
+      `;
+      },
+      suppressMenu: true,
+    },
+  ];
+
+  let gridOptions = {
+    defaultColDef: {
+      resizable: true,
+      flex: 1,
+    },
+    domLayout: "autoHeight" as "autoHeight",
+  };
+
+  let rowData = [];
+  let gridApi: any; // Define gridApi
 
   function toggleSidebarCollapse() {
     isSidebarCollapsed = !isSidebarCollapsed;
@@ -22,267 +85,189 @@
     window.location.href = "/login";
   }
 
-  function isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      return Date.now() > expirationTime;
-    } catch (err) {
-      return true;
-    }
-  }
-
-  function notifyTokenExpiry(token: string) {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      const timeLeft = expirationTime - Date.now();
-
-      if (timeLeft > 0 && timeLeft < 5 * 60 * 1000) {
-        alert(
-          "Tu sesión está a punto de expirar. Por favor, inicia sesión nuevamente.",
-        );
-      }
-    } catch (err) {
-      console.error("Error al decodificar el token:", err);
-    }
-  }
-
-  onMount(() => {
+  // Función mejorada para cargar usuarios
+  async function loadUsers() {
     const token = localStorage.getItem("token");
-
-    if (!token || isTokenExpired(token)) {
-      localStorage.removeItem("token");
-      alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
+    if (!token) {
       window.location.href = "/login";
       return;
     }
 
     try {
+      // Verificar si el token ha expirado
       const payload = JSON.parse(atob(token.split(".")[1]));
-      username = payload.sub; // Nombre de usuario
-      email = payload.email; // Correo electrónico
-      role = payload.role; // Rol del usuario
-
-      notifyTokenExpiry(token);
+      const expirationTime = payload.exp * 1000;
+      if (Date.now() > expirationTime) {
+        alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+        return;
+      }
     } catch (err) {
-      console.error("Error al decodificar el token:", err.message);
+      console.error("Error al decodificar el token:", err);
       localStorage.removeItem("token");
       window.location.href = "/login";
+      return;
     }
 
-    getUsers(token);
-  });
+    // Cargar usuarios con reintentos
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/users?skip=0&limit=100",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
 
-  function getUsers(token) {
-    const url = "http://localhost:8000/users?skip=0&limit=10"; // Añade los parámetros de paginación
-
-    return fetch(url, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-        Authorization: `Bearer ${token}`, // Agrega el token aquí
-      },
-    })
-      .then((response) => {
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
         }
-        return response.json();
-      })
-      .then((data) => {
-        console.log("Usuarios obtenidos:", data);
-        users = data; // Asigna los datos a una variable reactiva
-      })
-      .catch((err) => {
-        console.error("Error al obtener los usuarios:", err.message);
-        alert(
-          "No se pudieron cargar los usuarios. Por favor, intenta nuevamente.",
-        );
-      });
-  }
 
-  function goBakc() {
-    window.history.back();
-  }
-</script>
+        const data = await response.json();
+        rowData = data;
+        error = null;
+        return;
+      } catch (err) {
+        console.error(`Intento ${i + 1}: Error al obtener usuarios`, err);
+        error = "Error al cargar los usuarios";
 
-<div class="container">
-  <div
-    class="sidebar"
-    class:active={isSidebarOpen}
-    class:collapsed={isSidebarCollapsed}
-  >
-    <button
-      class="collapse-toggle"
-      on:click={toggleSidebarCollapse}
-      aria-label="Toggle Sidebar Collapse"
-    >
-      {#if isSidebarCollapsed}
-        <i class="fa-solid fa-bars"></i> <!-- Ícono de barras -->
-      {:else}
-        <i class="fa-solid fa-xmark"></i> <!-- Ícono de "X" -->
-      {/if}
-    </button>
-    <div class="header logo-item">
-      <Avatar initials={username[0]} background="bg-primary-900" />
-      <span>{username}</span>
-    </div>
-
-    <ul>
-      <li>
-        <a href="/settings" class="logo-item">
-          <i class="fas fa-cog"></i>
-          <!-- Ícono de configuración -->
-          <span>Administración</span>
-        </a>
-      </li>
-      <li>
-        <a href="dashboard/users" class="logo-item">
-          <i class="fas fa-users"></i>
-          <!-- Ícono de usuarios -->
-          <span>Usuarios</span>
-        </a>
-      </li>
-      <li>
-        <a
-          href="/"
-          role="button"
-          on:click={handleLogout}
-          on:keydown={(e) => e.key === "Enter" && handleLogout()}
-          class="logo-item"
-        >
-          <i class="fa-solid fa-arrow-right-from-bracket"></i>
-          <!-- Ícono de logout -->
-          <span>Cerrar Sesión</span>
-        </a>
-      </li>
-    </ul>
-  </div>
-
-  <div class="content">
-    <button type="button"  class="btn preset-secondary" on:click={goBakc}>
-      <span>Button</span>
-      <span>&rarr;</span>
-    </button>
-    <h1>Dashboard</h1>
-    <p>Bienvenido, {username}.</p>
-
-    <h1>Users</h1>
-
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>Email</th>
-          <th>actions</th>
-        </tr>
-      </thead>
-      <tbody>
-         {#each users as user}
-          <tr>
-            <td>{user.id}</td>
-            <td>{user.username}</td>
-            <td>{user.email}</td>
-            <td><button type="button" class="btn btn-lg preset-filled" >editar</button></td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<style>
-  .sidebar ul li a {
-    transition: all 0.3s ease;
-  }
-
-  .sidebar ul li a:hover {
-    background: rgba(255, 255, 255, 0.1);
-    padding-left: 15px;
-  }
-  .container {
-    display: flex;
-    height: 100vh;
-  }
-
-  .sidebar {
-    width: 250px;
-    background-color: #2c3e50;
-    color: white;
-    padding: 5px;
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-    box-shadow: 4px 0px 10px rgba(0, 0, 0, 0.2);
-    border-top-right-radius: 10px;
-    border-bottom-right-radius: 10px;
-    background: linear-gradient(135deg, #2c3e50, #1a252f);
-  }
-  .sidebar:not(.active) {
-    opacity: 0;
-  }
-
-  .sidebar.active {
-    opacity: 1;
-  }
-
-  .sidebar.active {
-    transform: translateX(0);
-  }
-
-  .sidebar:not(.active) {
-    transform: translateX(-250px); /* Oculta el sidebar */
-  }
-
-  .header {
-    background-color: #34495e;
-    color: white;
-    padding: 10px;
-    text-align: right;
-  }
-
-  span {
-    margin-left: 10px;
-  }
-
-  @media (max-width: 768px) {
-    .sidebar:not(.active) {
-      transform: translateX(-250px);
+        if (i < MAX_RETRIES - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // Reintentar
+        } else {
+          error = "No se pudo cargar la información después de varios intentos";
+        }
+      }
     }
   }
 
-  /* Estilos para el sidebar colapsado */
-  .sidebar.collapsed {
-    width: 70px; /* Ancho reducido */
-  }
-
-  .sidebar.collapsed ul li span {
-    display: none; /* Ocultar texto cuando está colapsado */
-  }
-
-  .sidebar.collapsed .header span {
-    display: none; /* Ocultar nombre de usuario cuando está colapsado */
-  }
-
-  .sidebar.collapsed .logo-item {
-    justify-content: center; /* Centrar iconos */
-  }
-
-  .collapse-toggle {
-    font-size: 24px; /* Ajusta el tamaño del ícono */
-    cursor: pointer;
-    background: none;
-    border: none;
-    color: white;
-    transition: transform 0.3s ease; /* Efecto de transición */
-  }
-
-  /* Hacer el ícono más grande al pasar el ratón */
-  .collapse-toggle:hover {
-    transform: scale(1.2); /* Escala el ícono al 120% */
-  }
-
+  onMount(async () => {
   
+  authService.checkAuth();
+  await loadUsers();
+});
+
+</script>
+
+<div class="container">
+  <Slider
+    username={$authStore.user.username}
+    email={$authStore.user.email}
+    role={$authStore.user.role}
+    isOpen={isSidebarOpen}
+    isCollapsed={isSidebarCollapsed}
+    {isSidebarOpen}
+    {isSidebarCollapsed}
+    on:toggleSidebarCollapse={toggleSidebarCollapse}
+    on:logout={handleLogout}
+  />
+
+  <div class="content">
+    <div class="header">
+      <Button
+        label="Regresar"
+        variant="primary"
+        icon={arrowIcon}
+        on:click={handleBack}
+      />
+      <h1 class="h1">Usuarios</h1>
+      <p class="h3">Bienvenido, {$authStore.user.username}.</p>
+    </div>
+    <!-- boton para crear usuario -->
+    <div class="md:container md:mx-auto btn-crear">
+      <!-- Button Crear Usuario -->
+      <Button
+        label="Crear Usuario"
+        variant="primary"
+        icon={plusIcon}
+        on:click={handleCreateUserClick}
+      />
+    </div>
+    <!-- AG Grid -->
+    <div class="ag-theme-alpine" style="width: 100%; height: 100px;">
+      <AgGridSvelte {rowData} {gridOptions} {columnDefs} />
+    </div>
+  </div>
+</div>
+<!-- Modal para crear usuarios -->
+<ModalUsers
+  isOpen={isModalOpen}
+  title="Crear nuevo usuario"
+  on:close={() => (isModalOpen = false)}
+  on:submit={handleCreateUser}
+/>
+
+<style>
+  /* Estilos generales */
+  .container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: #fdfdfd;
+  }
+
+  .content {
+    flex: 1;
+    padding: 20px;
+    background-color: rgb(255, 255, 255);
+    margin: 0; /* Eliminamos el margen */
+    /*display: flex;*/
+    flex-direction: column;
+    overflow: hidden;
+    height: 200%;
+    width: 300px;
+  }
+
+  .btn-crear {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+  }
+  @keyframes bounce {
+    0%,
+    80%,
+    100% {
+      transform: scale(0);
+    }
+    40% {
+      transform: scale(1);
+    }
+  }
+
+  /* Contenido principal */
+
+  .header {
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+  }
+
+  p {
+    color: #7f8c8d;
+  }
+
+  :global(.btn-edit) {
+    background: #2ecc71;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    margin-right: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  :global(.btn-delete) {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
 </style>

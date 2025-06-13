@@ -1,19 +1,30 @@
-<script>
-  import { Avatar } from "@skeletonlabs/skeleton";
+<script lang="ts">
+  import Slider from "../../../lib/components/Slider.svelte";
+  import Card from "../../../lib/components/Card.svelte";
   import { onMount } from "svelte";
+  import { authService, authStore } from "../../../lib/stores/auth";
+  import Button from "../../../lib/components/Button.svelte";
+
   let username = "";
   let email = "";
   let role = "";
   let isSidebarOpen = true;
   let isSidebarCollapsed = true;
+
+  const arrowIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  `;
+
   let anexos = [
     { id: 1, name: "Anexo 1", description: "Descripción del Anexo 1" },
     { id: 2, name: "Anexo 2", description: "Descripción del Anexo 2" },
     { id: 3, name: "Anexo 3", description: "Descripción del Anexo 3" },
+    { id: 4, name: "Anexo 4", description: "Descripción del Anexo 4" },
+    { id: 5, name: "Anexo 5", description: "Descripción del Anexo 5" },
+    { id: 6, name: "Anexo 6", description: "Descripción del Anexo 6" },
   ];
-  function toggleSidebar() {
-    isSidebarOpen = !isSidebarOpen;
-  }
 
   function toggleSidebarCollapse() {
     isSidebarCollapsed = !isSidebarCollapsed;
@@ -25,194 +36,105 @@
   }
 
   onMount(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token || isTokenExpired(token)) {
-      localStorage.removeItem("token");
-      alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
-      window.location.href = "/login";
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      username = payload.sub; // Nombre de usuario
-      email = payload.email; // Correo electrónico
-      role = payload.role; // Rol del usuario
-
-      notifyTokenExpiry(token);
-    } catch (err) {
-      console.error("Error al decodificar el token:", err.message);
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-    }
+    authService.checkAuth();
   });
 
-  function clickAnexo() {
-    console.log("Anexo clicked");
+  function handleBack(event: CustomEvent) {
+    history.back();
   }
 </script>
 
-
-
 <div class="container">
-    
-  <div
-    class="sidebar"
-    class:active={isSidebarOpen}
-    class:collapsed={isSidebarCollapsed}
-  >
-    <button
-      class="collapse-toggle"
-      on:click={toggleSidebarCollapse}
-      aria-label="Toggle Sidebar Collapse"
-    >
-      {#if isSidebarCollapsed}
-        <i class="fa-solid fa-bars"></i> <!-- Ícono de barras -->
-      {:else}
-        <i class="fa-solid fa-xmark"></i> <!-- Ícono de "X" -->
-      {/if}
-    </button>
-    <div class="header logo-item">
-      <Avatar initials={username[0]} background="bg-primary-900" />
-      <span>{username}</span>
-    </div>
+  <!-- Pasamos las propiedades necesarias al componente Slider -->
+  <Slider
+    username={$authStore.user?.username || "Usuario no identificado"}
+    email={$authStore.user?.email || "Sin correo"}
+    role={$authStore.user?.role || "Sin rol"}
+    isOpen={isSidebarOpen}
+    isCollapsed={isSidebarCollapsed}
+    {isSidebarOpen}
+    {isSidebarCollapsed}
+    on:toggleSidebarCollapse={toggleSidebarCollapse}
+    on:logout={handleLogout}
+  />
 
-    <ul>
-      <li on:mouseenter={clickAnexo} >
-        <a href="/user-dashboard/anexos" class="logo-item">
-          <i class="fa-solid fa-pen"></i>
-          <!-- Ícono de configuración -->
-          <span>Anexos</span>
-        </a>
-      </li>
+  <!-- Contenido principal -->
 
-      <li>
-        <a
-          href="/"
-          role="button"
-          on:click={handleLogout}
-          on:keydown={(e) => e.key === "Enter" && handleLogout()}
-          class="logo-item"
-        >
-          <i class="fa-solid fa-arrow-right-from-bracket"></i>
-          <!-- Ícono de logout -->
-          <span>Cerrar Sesión</span>
-        </a>
-      </li>
-    </ul>
-  </div>
+
   <div class="content">
-     {#each anexos as anexo}
-    <div class="anexo">
-      <h2>{anexo.name}</h2>
-      <p>{anexo.description}</p>
+    <Button
+      label="Regresar"
+      variant="secondary"
+      on:click={handleBack}
+      icon={arrowIcon}
+    />
+    <h1 class="h1">Anexos</h1>
+    <div class="grid-container">
+      {#each anexos as anexo}
+        <Card
+          title={anexo.name}
+          content={anexo.description}
+          icon=""
+          actionLabel="Ver más"
+          onAction={() => {
+            alert(`Ver más sobre ${anexo.id}`);
+          }}
+        />
+      {/each}
     </div>
-  {/each}
   </div>
- 
 </div>
 
 <style>
-  .anexo {
-    border: 1px solid #ccc;
-    padding: 10px;
-    margin: 10px 0;
-  }
-  .sidebar ul li a {
-    transition: all 0.3s ease;
-  }
-
-  .sidebar ul li a:hover {
-    background: rgba(255, 255, 255, 0.1);
-    padding-left: 15px;
-  }
+  /* Estilo general del contenedor */
   .container {
     display: flex;
     height: 100vh;
+    font-family: Arial, sans-serif;
   }
 
-  .sidebar {
+  /* Sidebar */
+  Slider {
     width: 250px;
     background-color: #2c3e50;
     color: white;
-    padding: 5px;
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-    box-shadow: 4px 0px 10px rgba(0, 0, 0, 0.2);
-    border-top-right-radius: 10px;
-    border-bottom-right-radius: 10px;
-    background: linear-gradient(135deg, #2c3e50, #1a252f);
-  }
-  .sidebar:not(.active) {
-    opacity: 0;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   }
 
-  .sidebar.active {
-    opacity: 1;
+  /* Contenido principal */
+  .content {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
   }
 
-  .sidebar.active {
-    transform: translateX(0);
+  /* Título */
+  .h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #fff;
   }
 
-  .sidebar:not(.active) {
-    transform: translateX(-250px); /* Oculta el sidebar */
+  /* Cuadrícula de tarjetas */
+  .grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columnas */
+    gap: 20px; /* Espaciado entre las tarjetas */
   }
 
-  .header {
-    background-color: #34495e;
-    color: white;
-    padding: 10px;
-    text-align: right;
-  }
-
-  span {
-    margin-left: 10px;
-  }
-
-  @media (max-width: 768px) {
-    .sidebar:not(.active) {
-      transform: translateX(-250px);
+  /* Ajuste para pantallas pequeñas */
+  @media (max-width: 1200px) {
+    .grid-container {
+      grid-template-columns: repeat(
+        2,
+        1fr
+      ); /* 2 columnas en pantallas medianas */
     }
   }
 
-  /* Estilos para el sidebar colapsado */
-  .sidebar.collapsed {
-    width: 70px; /* Ancho reducido */
+  @media (max-width: 768px) {
+    .grid-container {
+      grid-template-columns: 1fr; /* 1 columna en pantallas pequeñas */
+    }
   }
-
-  .sidebar.collapsed ul li span {
-    display: none; /* Ocultar texto cuando está colapsado */
-  }
-
-  .sidebar.collapsed .header span {
-    display: none; /* Ocultar nombre de usuario cuando está colapsado */
-  }
-
-  .sidebar.collapsed .logo-item {
-    justify-content: center; /* Centrar iconos */
-  }
-
-  .collapse-toggle {
-    font-size: 24px; /* Ajusta el tamaño del ícono */
-    cursor: pointer;
-    background: none;
-    border: none;
-    color: white;
-    transition: transform 0.3s ease; /* Efecto de transición */
-  }
-
-  /* Hacer el ícono más grande al pasar el ratón */
-  .collapse-toggle:hover {
-    transform: scale(1.2); /* Escala el ícono al 120% */
-  }
-
-  .header.logo-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  
 </style>

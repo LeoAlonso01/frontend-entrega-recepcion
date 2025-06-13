@@ -1,226 +1,82 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { Avatar } from "@skeletonlabs/skeleton";
+  import Slider from "../../lib/components/Slider.svelte"; // Importamos el componente Slider
+  import { onMount } from "svelte"; // Importamos onMount para ejecutar código al montar el componente
+  import { authStore, authService } from "../../lib/stores/auth"; // Importamos el store de autenticación
+  let isSidebarOpen = true; // Variable para controlar si el sidebar está abierto o cerrado
+  let isSidebarCollapsed = true; // Variable para controlar si el sidebar está colapsado o no
 
-  let username = "";
-  let email = "";
-  let role = "";
-  let isSidebarOpen = true;
-  let isSidebarCollapsed = true;
-
-  function toggleSidebar() {
-    isSidebarOpen = !isSidebarOpen;
-  }
-
+  // Función para cambiar el estado de la variable isSidebarOpen
   function toggleSidebarCollapse() {
     isSidebarCollapsed = !isSidebarCollapsed;
   }
 
+  // Función para cerrar sesión
   function handleLogout() {
     localStorage.removeItem("token");
     window.location.href = "/login";
   }
 
-  function isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      return Date.now() > expirationTime;
-    } catch (err) {
-      return true;
-    }
-  }
-
-  function notifyTokenExpiry(token: string) {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      const timeLeft = expirationTime - Date.now();
-
-      if (timeLeft > 0 && timeLeft < 5 * 60 * 1000) {
-        alert(
-          "Tu sesión está a punto de expirar. Por favor, inicia sesión nuevamente.",
-        );
-      }
-    } catch (err) {
-      console.error("Error al decodificar el token:", err);
-    }
-  }
-
+  // Ejecutamos el código al montar el componente
   onMount(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token || isTokenExpired(token)) {
-      localStorage.removeItem("token");
-      alert("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
-      window.location.href = "/login";
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      username = payload.sub; // Nombre de usuario
-      email = payload.email; // Correo electrónico
-      role = payload.role; // Rol del usuario
-
-      notifyTokenExpiry(token);
-    } catch (err) {
-      console.error("Error al decodificar el token:", err.message);
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-    }
+    // Verificamos si el usuario está autenticado
+    authService.checkAuth();
   });
+
 </script>
 
 <div class="container">
-  <div
-    class="sidebar"
-    class:active={isSidebarOpen}
-    class:collapsed={isSidebarCollapsed}
-  >
-    <button
-      class="collapse-toggle"
-      on:click={toggleSidebarCollapse}
-      aria-label="Toggle Sidebar Collapse"
-    >
-      {#if isSidebarCollapsed}
-        <i class="fa-solid fa-bars"></i> <!-- Ícono de barras -->
-      {:else}
-        <i class="fa-solid fa-xmark"></i> <!-- Ícono de "X" -->
+  <!-- Layout para usuarios no autenticados -->
+  {#if $authStore.loading}
+    <div>Cargando sesión...</div>
+  {:else if !$authStore.isAuthenticated}
+    <main class="content">
+      <h1>Dashboard</h1>
+      <p>Debes iniciar sesión para acceder a esta página</p>
+    <slot />
+    </main>
+  {:else}
+    <!-- Layout para usuarios autenticados -->
+    <!-- Pasamos las propiedades necesarias al componente Slider -->
+    <Slider
+      username={$authStore.user.username}
+      email={$authStore.user.email}
+      role={$authStore.user.role}
+      isOpen={isSidebarOpen}
+      isCollapsed={isSidebarCollapsed}
+      {isSidebarOpen}
+      {isSidebarCollapsed}
+      on:toggleSidebarCollapse={toggleSidebarCollapse}
+      on:logout={handleLogout}
+    />
+
+    <!-- Contenido principal -->
+    <main class="content">
+      <div class="content">
+        <h1>Dashboard</h1>
+        <p>Hola {$authStore.user.username} </p>
+      </div>
+
+      <!-- Mostramos un mensaje de error si existe -->
+      {#if $authStore.error}
+        <div class="alert">{$authStore.error}</div>
       {/if}
-    </button>
-    <div class="header logo-item">
-      <Avatar initials={username[0]} background="bg-primary-900" />
-      <span>{username}</span>
-    </div>
-
-    <ul>
-      <li>
-        <a href="/settings" class="logo-item">
-          <i class="fas fa-cog"></i>
-          <!-- Ícono de configuración -->
-          <span>Administración</span>
-        </a>
-      </li>
-      <li>
-        <a href="dashboard/users" class="logo-item">
-          <i class="fas fa-users"></i>
-          <!-- Ícono de usuarios -->
-          <span>Usuarios</span>
-        </a>
-      </li>
-      <li>
-        <a
-          href="/"
-          role="button"
-          on:click={handleLogout}
-          on:keydown={(e) => e.key === "Enter" && handleLogout()}
-          class="logo-item"
-        >
-          <i class="fa-solid fa-arrow-right-from-bracket"></i>
-          <!-- Ícono de logout -->
-          <span>Cerrar Sesión</span>
-        </a>
-      </li>
-    </ul>
-  </div>
-
-  <div class="content">
-    <h1>Dashboard</h1>
-    <p>Bienvenido, {username}.</p>
-  </div>
+      <slot />
+    </main>
+  {/if}
 </div>
 
-<style>
-  .sidebar ul li a {
-    transition: all 0.3s ease;
-  }
 
-  .sidebar ul li a:hover {
-    background: rgba(255, 255, 255, 0.1);
-    padding-left: 15px;
-  }
+<style>
   .container {
     display: flex;
     height: 100vh;
   }
-
-  .sidebar {
-    width: 250px;
-    background-color: #2c3e50;
-    color: white;
-    padding: 5px;
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-    box-shadow: 4px 0px 10px rgba(0, 0, 0, 0.2);
-    border-top-right-radius: 10px;
-    border-bottom-right-radius: 10px;
-    background: linear-gradient(135deg, #2c3e50, #1a252f);
-  }
-  .sidebar:not(.active) {
-    opacity: 0;
+  .alert {
+    padding: 1rem;
+    background-color: #ffeb3b;
+    color: #333;
+    margin-bottom: 1rem;
+    border-radius: 4px;
   }
 
-  .sidebar.active {
-    opacity: 1;
-  }
-
-  .sidebar.active {
-    transform: translateX(0);
-  }
-
-  .sidebar:not(.active) {
-    transform: translateX(-250px); /* Oculta el sidebar */
-  }
-
-  .header {
-    background-color: #34495e;
-    color: white;
-    padding: 10px;
-    text-align: right;
-  }
-
-  span {
-    margin-left: 10px;
-  }
-
-  @media (max-width: 768px) {
-    .sidebar:not(.active) {
-      transform: translateX(-250px);
-    }
-  }
-
-  /* Estilos para el sidebar colapsado */
-  .sidebar.collapsed {
-    width: 70px; /* Ancho reducido */
-  }
-
-  .sidebar.collapsed ul li span {
-    display: none; /* Ocultar texto cuando está colapsado */
-  }
-
-  .sidebar.collapsed .header span {
-    display: none; /* Ocultar nombre de usuario cuando está colapsado */
-  }
-
-  .sidebar.collapsed .logo-item {
-    justify-content: center; /* Centrar iconos */
-  }
-
-  .collapse-toggle {
-    font-size: 24px; /* Ajusta el tamaño del ícono */
-    cursor: pointer;
-    background: none;
-    border: none;
-    color: white;
-    transition: transform 0.3s ease; /* Efecto de transición */
-  }
-
-  /* Hacer el ícono más grande al pasar el ratón */
-  .collapse-toggle:hover {
-    transform: scale(1.2); /* Escala el ícono al 120% */
-  }
-
-  
 </style>
